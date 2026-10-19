@@ -1,0 +1,16 @@
+# Python cache files
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+
+# Environment variables
+.env
+
+# Runtime data
+data/tickets.json
+
+# Editor and operating system files
+.vscode/
+.DS_Store
