@@ -113,3 +113,43 @@ Use Python's built-in json module to avoid external dependencies.
 - Atomic file replacement is not yet implemented.
 - The current loader checks JSON syntax but does not fully validate
   the structure of saved ticket records.
+
+  Decision 7: Ticket Queries and Reporting
+
+### Functions
+- `list_tickets(tickets)`
+- `get_open_work_queue(tickets)`
+- `get_ticket_report(tickets)`
+
+### Design Decisions
+
+- Ticket listing uses ascending numeric ticket IDs.
+- The open work queue contains only tickets with status `open`.
+- Open tickets are sorted by priority, highest first.
+- Tickets with equal priority are sorted by ascending ticket ID.
+- Reports provide a total count and breakdowns by status and priority.
+- Empty reports include categories with zero counts.
+- Query functions do not modify the ticket collection.
+
+
+## Decision 6: Ticket Workflow
+
+### Functions
+- `find_ticket(tickets, ticket_id)`
+- `assign_ticket(tickets, ticket_id, mentor)`
+- `update_ticket_status(tickets, ticket_id, new_status)`
+- `reopen_ticket(tickets, ticket_id)`
+
+### Business Rules
+
+- New tickets begin as `open`.
+- A ticket must be assigned before moving to `in_progress`.
+- Normal transitions are `open` → `in_progress` → `resolved`.
+- A ticket cannot move directly from `open` to `resolved`.
+- Resolved tickets must be explicitly reopened before work can begin again.
+- Reopening changes the status to `open` and preserves the assignment.
+- Repeating the same status transition raises `ValueError`.
+- Unknown ticket IDs raise `KeyError`.
+- Assigning a ticket does not automatically change its status.
+
+**Design decision:** The CLI asks the administrator to enter the desired status and passes it to `update_ticket_status()`. Workflow rules remain inside `campusflow/workflow.py`; the CLI does not duplicate them.
