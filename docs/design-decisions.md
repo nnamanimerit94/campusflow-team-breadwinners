@@ -83,3 +83,33 @@ Returns the newly created ticket as a dictionary.
   persistence is implemented.
 - The ID generation approach assumes existing IDs are valid.
 - Deleting the highest-numbered ticket could cause ID reuse.
+
+## JSON Persistence Contract
+
+### Functions
+- save_tickets(tickets, file_path)
+- load_tickets(file_path)
+
+### Purpose
+Persist tickets between application sessions using JSON files.
+
+### Save Behavior
+- Accepts a dictionary of tickets and a destination file path.
+- Saves tickets as readable JSON with four-space indentation.
+- Returns None on success.
+- Allows file-writing and serialization errors to propagate.
+
+### Load Behavior
+- Returns saved tickets as a dictionary.
+- Returns an empty dictionary if the file does not exist.
+- Raises ValueError when the JSON is malformed.
+- Does not modify the file during loading.
+
+### Design Decision
+Use Python's built-in json module to avoid external dependencies.
+
+### Limitations
+- Saving directly to a file can overwrite existing data.
+- Atomic file replacement is not yet implemented.
+- The current loader checks JSON syntax but does not fully validate
+  the structure of saved ticket records.
