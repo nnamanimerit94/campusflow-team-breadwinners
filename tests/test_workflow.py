@@ -1,5 +1,7 @@
 import unittest
 
+from copy import deepcopy
+
 from campusflow.workflow import (
     assign_ticket,
     find_ticket,
@@ -77,6 +79,16 @@ class TestTicketAssignment(unittest.TestCase):
         ticket = assign_ticket(self.tickets, "T001", "Grace")
 
         self.assertEqual(ticket["assigned_to"], "Grace")
+
+    def test_resolved_ticket_assignment_preserves_entire_collection(self):
+        before = deepcopy(self.tickets)
+        with self.assertRaises(ValueError):
+            assign_ticket(
+                self.tickets,
+                "T002",
+                "Another Mentor"
+                )
+        self.assertEqual(self.tickets, before)
 
 
 class TestTicketStatusWorkflow(unittest.TestCase):
@@ -165,3 +177,14 @@ class TestTicketStatusWorkflow(unittest.TestCase):
                 self.tickets["T002"]["status"],
                 "open"
             )
+
+    def test_unassigned_ticket_transition_preserves_entire_collection(self):
+        before = deepcopy(self.tickets)
+
+        with self.assertRaises(ValueError):
+            update_ticket_status(
+                self.tickets,
+                "T001",
+                "in_progress"
+                )
+        self.assertEqual(self.tickets, before)

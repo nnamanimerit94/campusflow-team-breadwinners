@@ -1,5 +1,7 @@
 import unittest
 
+from copy import deepcopy
+
 from campusflow.tickets import generate_ticket_id, create_ticket
 
 class TestGenerateTicketID(unittest.TestCase):
@@ -144,3 +146,33 @@ class TestCreateTicket(unittest.TestCase):
             create_ticket(tickets, "Internet issue", "network", "high", 0)
 
         self.assertEqual(tickets, {})
+
+    def test_invalid_creation_preserves_existing_tickets_and_next_id(self):
+        tickets = {}
+        first_ticket = create_ticket(
+            tickets,
+            "Wi-Fi unavailable",
+            "Network",
+            "high",
+            15
+        )
+
+        before = deepcopy(tickets)
+        with self.assertRaises((ValueError, TypeError)):
+            create_ticket(
+                tickets,
+                "Invalid ticket",
+                "Network",
+                "high",
+                0
+            )
+        self.assertEqual(tickets, before)
+        second_ticket = create_ticket(
+            tickets,
+            "Projector unavailable",
+            "Hardware",
+            "low",
+            2
+        )
+        self.assertEqual(first_ticket["id"], "T001")
+        self.assertEqual(second_ticket["id"], "T002")
