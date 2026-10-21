@@ -17,7 +17,7 @@ def assign_ticket(tickets, ticket_id, raw_mentor):
         raise ValueError("mentor cannot be empty")
 
     if ticket["assigned_to"] == mentor:
-        raise ValueError(f"tickets already assigned to {ticket["assigned_to"]}")
+        raise ValueError(f"tickets already assigned to {ticket['assigned_to']}")
     if ticket["status"] == "resolved":
         raise ValueError(
             "tickets already resolved and has no permissions for modification"
@@ -32,7 +32,7 @@ def reopen_ticket(tickets, ticket_id):
     ticket = find_ticket(tickets, ticket_id)
 
     if ticket["status"] != "resolved":
-        raise ValueError(f"ticket still {ticket["status"]}")
+        raise ValueError(f"ticket still {ticket['status']}")
 
     ticket["status"] = "open"
 
