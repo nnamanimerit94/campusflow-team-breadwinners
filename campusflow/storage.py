@@ -1,23 +1,25 @@
 import json
 import os
 import tempfile
+
+from copy import deepcopy
 from pathlib import Path
+
+from campusflow.priority import calculate_priority
 
 
 def validate_tickets(tickets):
 
-    # The entire tickets collection must be a dictionary.
+    # The entire collection must be a dictionary.
     if not isinstance(tickets, dict):
         raise ValueError("Tickets must be a dictionary")
 
-    # Go through each ticket.
+    # Check every ticket.
     for ticket_id, ticket in tickets.items():
 
-        # Each ticket must also be a dictionary.
         if not isinstance(ticket, dict):
             raise ValueError("Each ticket must be a dictionary")
 
-        # These fields must exist in every ticket.
         required_fields = [
             "id",
             "title",
@@ -29,138 +31,186 @@ def validate_tickets(tickets):
             "assigned_to"
         ]
 
+        # Check that all required fields exist.
         for field in required_fields:
             if field not in ticket:
                 raise ValueError(
                     f"Ticket {ticket_id} is missing {field}"
                 )
 
-        # The ticket ID must match its dictionary key.
+        # Validate ticket ID.
+        if not isinstance(ticket_id, str):
+            raise ValueError("Ticket ID must be a string")
+
+        if not ticket_id.startswith("T"):
+            raise ValueError("Invalid ticket ID")
+
+        number = ticket_id[1:]
+
+        if len(number) < 3 or not number.isascii() or not number.isdigit():
+            raise ValueError("Invalid ticket ID")
+
+        if int(number) < 1:
+            raise ValueError("Ticket ID must be greater than zero")
+
         if ticket["id"] != ticket_id:
             raise ValueError("Ticket ID does not match")
 
-        # Check that these fields contain strings.
-        string_fields = [
-            "id",
-            "title",
-            "category",
-            "urgency",
-            "priority",
-            "status"
+        # Validate title.
+        if not isinstance(ticket["title"], str):
+            raise ValueError("Title must be a string")
+
+        if ticket["title"].strip() == "":
+            raise ValueError("Title cannot be empty")
+
+        # Validate category.
+        valid_categories = [
+            "Network",
+            "Hardware",
+            "Software",
+            "Other"
         ]
 
-        for field in string_fields:
-            if not isinstance(ticket[field], str):
-                raise ValueError(
-                    f"{field} must be a string"
-                )
+        if ticket["category"] not in valid_categories:
+            raise ValueError("Invalid ticket category")
 
-            if ticket[field].strip() == "":
-                raise ValueError(
-                    f"{field} cannot be empty"
-                )
+        # Validate urgency.
+        valid_urgencies = [
+            "low",
+            "medium",
+            "high"
+        ]
 
-        # affected_users must be a positive integer.
+        if ticket["urgency"] not in valid_urgencies:
+            raise ValueError("Invalid ticket urgency")
+
+        # Validate affected users.
         if type(ticket["affected_users"]) != int:
             raise ValueError("affected_users must be an integer")
 
         if ticket["affected_users"] < 1:
             raise ValueError("affected_users must be positive")
 
-        # assigned_to can be None or a non-empty string.
-        if ticket["assigned_to"] is not None:
+        # Validate priority.
+        expected_priority = calculate_priority(
+            ticket["urgency"],
+            ticket["affected_users"]
+        )
 
-            if not isinstance(ticket["assigned_to"], str):
-                raise ValueError("assigned_to must be a string or None")
+        if ticket["priority"] != expected_priority:
+            raise ValueError(
+                f"Ticket {ticket_id} has an incorrect priority"
+            )
 
-            if ticket["assigned_to"].strip() == "":
-                raise ValueError("assigned_to cannot be empty")
-
-        # Check the ticket status.
-        valid_statuses = ["open", "in_progress", "resolved"]
+        # Validate status.
+        valid_statuses = [
+            "open",
+            "in_progress",
+            "resolved"
+        ]
 
         if ticket["status"] not in valid_statuses:
             raise ValueError("Invalid ticket status")
 
-        # Older tickets may not have notes.
-        # But if notes exists, it must be a list.
-        if "notes" in ticket:
+        # Validate assigned mentor.
+        if ticket["assigned_to"] is not None:
 
-            notes = ticket["notes"]
+            if not isinstance(ticket["assigned_to"], str):
+                raise ValueError(
+                    "assigned_to must be a string or None"
+                )
 
-            if not isinstance(notes, list):
-                raise ValueError("Notes must be a list")
+            if ticket["assigned_to"].strip() == "":
+                raise ValueError(
+                    "assigned_to cannot be empty"
+                )
 
-            note_ids = []
+        # Older tickets may not contain notes.
+        if "notes" not in ticket:
+            continue
 
-            # Check each note.
-            for note in notes:
+        notes = ticket["notes"]
 
-                if not isinstance(note, dict):
-                    raise ValueError("Each note must be a dictionary")
+        if not isinstance(notes, list):
+            raise ValueError("Notes must be a list")
 
-                # Check required note fields.
-                if "note_id" not in note:
-                    raise ValueError("Note is missing note_id")
+        note_ids = []
 
-                if "author" not in note:
-                    raise ValueError("Note is missing author")
+        for note in notes:
 
-                if "message" not in note:
-                    raise ValueError("Note is missing message")
+            if not isinstance(note, dict):
+                raise ValueError("Each note must be a dictionary")
 
-                # Validate note ID.
-                note_id = note["note_id"]
+            required_note_fields = [
+                "note_id",
+                "author",
+                "message"
+            ]
 
-                if not isinstance(note_id, str):
-                    raise ValueError("Note ID must be a string")
-
-                if not note_id.startswith("N"):
-                    raise ValueError("Invalid note ID")
-
-                number = note_id[1:]
-
-                if len(number) < 3 or not number.isdigit():
-                    raise ValueError("Invalid note ID")
-
-                # Prevent duplicate note IDs.
-                if note_id in note_ids:
-                    raise ValueError("Duplicate note ID")
-
-                note_ids.append(note_id)
-
-                # Validate author.
-                if not isinstance(note["author"], str):
-                    raise ValueError("Author must be a string")
-
-                if note["author"].strip() == "":
-                    raise ValueError("Author cannot be empty")
-
-                # Validate message.
-                if not isinstance(note["message"], str):
-                    raise ValueError("Message must be a string")
-
-                message = note["message"].strip()
-
-                if len(message) < 5 or len(message) > 300:
+            for field in required_note_fields:
+                if field not in note:
                     raise ValueError(
-                        "Message must contain 5 to 300 characters"
+                        f"Note is missing {field}"
                     )
+
+            # Validate note ID.
+            note_id = note["note_id"]
+
+            if not isinstance(note_id, str):
+                raise ValueError("Note ID must be a string")
+
+            if not note_id.startswith("N"):
+                raise ValueError("Invalid note ID")
+
+            note_number = note_id[1:]
+
+            if (
+                len(note_number) < 3
+                or not note_number.isascii()
+                or not note_number.isdigit()
+            ):
+                raise ValueError("Invalid note ID")
+
+            if int(note_number) < 1:
+                raise ValueError("Invalid note ID")
+
+            # Reject duplicate note IDs.
+            if note_id in note_ids:
+                raise ValueError("Duplicate note ID")
+
+            note_ids.append(note_id)
+
+            # Validate author.
+            if not isinstance(note["author"], str):
+                raise ValueError("Author must be a string")
+
+            if note["author"].strip() == "":
+                raise ValueError("Author cannot be empty")
+
+            # Validate message.
+            if not isinstance(note["message"], str):
+                raise ValueError("Message must be a string")
+
+            message = note["message"].strip()
+
+            if len(message) < 5 or len(message) > 300:
+                raise ValueError(
+                    "Message must contain 5 to 300 characters"
+                )
 
     return tickets
 
 
 def check_duplicate_keys(pairs):
-    """
-    Reject repeated keys when reading JSON.
-    """
 
     result = {}
 
     for key, value in pairs:
 
         if key in result:
-            raise ValueError(f"Duplicate JSON key: {key}")
+            raise ValueError(
+                f"Duplicate JSON key: {key}"
+            )
 
         result[key] = value
 
@@ -177,23 +227,40 @@ def load_tickets(file_path):
                 object_pairs_hook=check_duplicate_keys
             )
 
+        # Validate everything before returning it.
         validate_tickets(tickets)
 
-        return tickets
+        # Create a separate copy for legacy normalization.
+        loaded_tickets = deepcopy(tickets)
+
+        for ticket in loaded_tickets.values():
+
+            if "notes" not in ticket:
+                ticket["notes"] = []
+
+        return loaded_tickets
 
     except FileNotFoundError:
         return {}
 
     except json.JSONDecodeError as error:
-        raise ValueError(f"Invalid JSON: {error}") from error
+        raise ValueError(
+            f"Invalid JSON: {error}"
+        ) from error
 
 
 def save_tickets(tickets, file_path):
 
-    # Check the data before saving.
+    # Reject invalid data before writing anything.
     validate_tickets(tickets)
 
     file_path = Path(file_path)
+
+    # Create the data directory if it does not exist.
+    file_path.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
     temporary_file = None
 
@@ -213,8 +280,13 @@ def save_tickets(tickets, file_path):
 
             os.fsync(file.fileno())
 
+        # Replace the destination only after writing succeeds.
         os.replace(temporary_file, file_path)
 
     finally:
-        if temporary_file is not None and os.path.exists(temporary_file):
+
+        if (
+            temporary_file is not None
+            and os.path.exists(temporary_file)
+        ):
             os.remove(temporary_file)

@@ -81,7 +81,7 @@ def next_note_id(ticket):
     """
     Generate the next note ID for a specific ticket.
     """
-    notes = ticket.setdefault("notes",[])
+    notes = ticket.get("notes",[])
 
     if not notes:
         return "N001"
@@ -150,4 +150,8 @@ def get_notes(tickets, ticket_id):
 
     if not isinstance(ticket["notes"], list):
         raise TypeError("notes must be a list")
-    return deepcopy(ticket["notes"])
+    copied_notes= deepcopy(ticket["notes"])
+
+    copied_notes.sort(key=lambda note: int(note["note_id"][1:]))
+
+    return copied_notes

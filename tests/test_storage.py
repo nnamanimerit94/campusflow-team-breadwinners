@@ -61,7 +61,10 @@ class TestTicketStorage(unittest.TestCase):
         save_tickets(tickets, self.file_path)
         loaded = load_tickets(self.file_path)
 
-        self.assertEqual(loaded, tickets)
+        expected = deepcopy(tickets)
+        expected["T001"]["notes"] = []
+        self.assertEqual(loaded, expected)
+
 
     def test_save_returns_none(self):
         result = save_tickets({}, self.file_path)
@@ -426,180 +429,6 @@ class TestStorageBugHunters(unittest.TestCase):
             original_content
         )
 
-
-    def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.file_path = Path(self.temp_dir.name) / "tickets.json"
-
-        self.valid_ticket = {
-            "id": "T001",
-            "title": "Wi-Fi unavailable",
-            "category": "Network",
-            "urgency": "high",
-            "affected_users": 15,
-            "priority": "critical",
-            "status": "open",
-            "assigned_to": None,
-            "notes": []
-        }
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-
-    def write_json(self, data):
-        """Write test data directly, bypassing save_tickets()."""
-
-        with open(self.file_path, "w", encoding="utf-8") as file:
-            json.dump(data, file)
-
-    def test_rejects_missing_required_ticket_field(self):
-        ticket = deepcopy(self.valid_ticket)
-
-        del ticket["title"]
-
-        self.write_json({"T001": ticket})
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_notes_that_are_not_a_list(self):
-        ticket = deepcopy(self.valid_ticket)
-
-        ticket["notes"] = "Invalid notes structure"
-
-        self.write_json({"T001": ticket})
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_note_missing_required_field(self):
-        ticket = deepcopy(self.valid_ticket)
-
-        ticket["notes"] = [
-            {
-                "note_id": "N001",
-                "author": "Mentor A"
-                # Missing message
-            }
-        ]
-
-        self.write_json({"T001": ticket})
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_duplicate_note_ids_within_ticket(self):
-        ticket = deepcopy(self.valid_ticket)
-
-        ticket["notes"] = [
-            {
-                "note_id": "N001",
-                "author": "Mentor A",
-                "message": "Router restarted"
-            },
-            {
-                "note_id": "N001",
-                "author": "Mentor B",
-                "message": "Connection restored"
-            }
-        ]
-
-        self.write_json({"T001": ticket})
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_ticket_id_mismatch(self):
-        ticket = deepcopy(self.valid_ticket)
-
-        ticket["id"] = "T002"
-
-        self.write_json({"T001": ticket})
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_invalid_ticket_collection_type(self):
-        self.write_json([
-            self.valid_ticket
-        ])
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_invalid_note_message_length(self):
-        ticket = deepcopy(self.valid_ticket)
-
-        ticket["notes"] = [
-            {
-                "note_id": "N001",
-                "author": "Mentor A",
-                "message": "bad"
-            }
-        ]
-
-        self.write_json({"T001": ticket})
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_duplicate_ticket_keys_in_raw_json(self):
-        # Write raw JSON because Python dictionaries
-        # cannot contain duplicate keys.
-
-        raw_json = """
-        {
-            "T001": {
-                "id": "T001",
-                "title": "First ticket"
-            },
-            "T001": {
-                "id": "T001",
-                "title": "Second ticket"
-            }
-        }
-        """
-
-        self.file_path.write_text(raw_json, encoding="utf-8")
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-    def test_rejects_corrupted_json_without_overwriting_file(self):
-        corrupted_content = '{"T001": {"id": "T001",'
-
-        self.file_path.write_text(
-            corrupted_content,
-            encoding="utf-8"
-        )
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-        self.assertEqual(
-            self.file_path.read_text(encoding="utf-8"),
-            corrupted_content
-        )
-
-    def test_rejects_invalid_note_without_changing_valid_file(self):
-        ticket = deepcopy(self.valid_ticket)
-
-        ticket["notes"] = "Invalid notes structure"
-
-        self.write_json({"T001": ticket})
-
-        original_content = self.file_path.read_text(
-            encoding="utf-8"
-        )
-
-        with self.assertRaises(ValueError):
-            load_tickets(self.file_path)
-
-        self.assertEqual(
-            self.file_path.read_text(encoding="utf-8"),
-            original_content
-        )
-
 class TestInvalidSaveProtection(unittest.TestCase):
 
     def setUp(self):
@@ -651,3 +480,79 @@ class TestInvalidSaveProtection(unittest.TestCase):
         )
 
         self.assertEqual(current_content, original_content)
+class TestContractValidation(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.file_path = Path(self.temp_dir.name) / "tickets.json"
+
+        self.ticket = {
+            "id": "T001",
+            "title": "Wi-Fi unavailable",
+            "category": "Network",
+            "urgency": "high",
+            "affected_users": 15,
+            "priority": "critical",
+            "status": "open",
+            "assigned_to": None,
+            "notes": []
+        }
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_invalid_category_is_rejected(self):
+        ticket = deepcopy(self.ticket)
+        ticket["category"] = "Finance"
+
+        with self.assertRaises(ValueError):
+            save_tickets({"T001": ticket}, self.file_path)
+
+    def test_invalid_urgency_is_rejected(self):
+        ticket = deepcopy(self.ticket)
+        ticket["urgency"] = "extreme"
+
+        with self.assertRaises(ValueError):
+            save_tickets({"T001": ticket}, self.file_path)
+
+    def test_incorrect_priority_is_rejected(self):
+        ticket = deepcopy(self.ticket)
+        ticket["priority"] = "low"
+
+        with self.assertRaises(ValueError):
+            save_tickets({"T001": ticket}, self.file_path)
+
+    def test_invalid_ticket_id_is_rejected(self):
+        ticket = deepcopy(self.ticket)
+        ticket["id"] = "T000"
+
+        with self.assertRaises(ValueError):
+            save_tickets({"T000": ticket}, self.file_path)
+
+    def test_legacy_ticket_gets_empty_notes_after_loading(self):
+        ticket = deepcopy(self.ticket)
+        del ticket["notes"]
+
+        save_tickets({"T001": ticket}, self.file_path)
+
+        loaded = load_tickets(self.file_path)
+
+        self.assertEqual(loaded["T001"]["notes"], [])
+
+        # Loading must not rewrite the original JSON file.
+        original_data = json.loads(
+            self.file_path.read_text(encoding="utf-8")
+        )
+
+        self.assertNotIn("notes", original_data["T001"])
+
+    def test_save_creates_missing_directory(self):
+        new_path = (
+            Path(self.temp_dir.name)
+            / "data"
+            / "tickets.json"
+        )
+
+        save_tickets({"T001": self.ticket}, new_path)
+
+        self.assertTrue(new_path.exists())

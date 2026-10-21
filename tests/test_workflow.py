@@ -11,6 +11,10 @@ from campusflow.workflow import (
 )
 import copy
 
+from copy import deepcopy
+
+from campusflow.workflow import next_note_id
+
 class TestAddNote(unittest.TestCase):
 
     def test_add_note_preserves_existing_notes(self):
@@ -742,3 +746,66 @@ class TestGetNotesBugHunters(unittest.TestCase):
             2
         )
         self.assertEqual(self.tickets["T002"]["notes"], [])
+
+class TestNoteContract(unittest.TestCase):
+
+    def test_next_note_id_does_not_modify_legacy_ticket(self):
+        ticket = {
+            "id": "T001",
+            "status": "open"
+        }
+
+        original = deepcopy(ticket)
+
+        result = next_note_id(ticket)
+
+        self.assertEqual(result, "N001")
+        self.assertEqual(ticket, original)
+
+    def test_get_notes_returns_numeric_order(self):
+        tickets = {
+            "T001": {
+                "id": "T001",
+                "notes": [
+                    {
+                        "note_id": "N003",
+                        "author": "Mentor C",
+                        "message": "Third update"
+                    },
+                    {
+                        "note_id": "N001",
+                        "author": "Mentor A",
+                        "message": "First update"
+                    },
+                    {
+                        "note_id": "N002",
+                        "author": "Mentor B",
+                        "message": "Second update"
+                    }
+                ]
+            }
+        }
+
+        original = deepcopy(tickets)
+
+        notes = get_notes(tickets, "T001")
+
+        self.assertEqual(
+            [note["note_id"] for note in notes],
+            ["N001", "N002", "N003"]
+        )
+
+        self.assertEqual(tickets, original)
+
+    def test_next_note_id_uses_highest_existing_id(self):
+        ticket = {
+            "notes": [
+                {"note_id": "N001"},
+                {"note_id": "N005"},
+                {"note_id": "N003"}
+            ]
+        }
+
+        result = next_note_id(ticket)
+
+        self.assertEqual(result, "N006")
