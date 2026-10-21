@@ -87,7 +87,8 @@ class TestCreateTicket(unittest.TestCase):
             "affected_users": 15,
             "priority": "critical",
             "status": "open",
-            "assigned_to": None
+            "assigned_to": None,
+            "notes": []
         })
 
     def test_creates_sequential_tickets(self):
