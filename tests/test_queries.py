@@ -146,3 +146,33 @@ class TestTicketQueries(unittest.TestCase):
         get_ticket_report(self.tickets)
 
         self.assertEqual(self.tickets, original)
+class TestEngineerABugHunter(unittest.TestCase):
+
+    @unittest.skip("Pending Engineer B review of query result aliasing")
+    def test_query_results_cannot_modify_original_tickets(self):
+        """
+        Engineer A bug-hunter test for Engineer B's query module.
+
+        Checks whether changing a returned ticket also changes
+        the original ticket collection.
+        """
+
+        from copy import deepcopy
+
+        tickets = {
+            "T001": {
+                "id": "T001",
+                "priority": "high",
+                "status": "open"
+            }
+        }
+
+        original = deepcopy(tickets)
+
+        results = list_tickets(tickets)
+
+        # Attempt to modify a returned ticket.
+        results[0]["status"] = "resolved"
+
+        # Verify that the original collection remains unchanged.
+        self.assertEqual(tickets, original)
