@@ -37,7 +37,8 @@ def create_ticket(tickets, title, category, urgency,affected_users):
     "affected_users": affected,
     "priority": calculate_priority(urgent, affected),
     "status": "open",
-    "assigned_to": None
+    "assigned_to": None,
+    "notes": []
    }
 
    tickets[ticket["id"]] = ticket

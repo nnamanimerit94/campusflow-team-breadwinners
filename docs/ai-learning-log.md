@@ -133,3 +133,34 @@ For example, the CLI uses the workflow module to validate ticket status transiti
 
 This helps maintain consistent behavior across the application.
 
+
+
+### Engineer A Bug-Hunter Finding — Query Result Aliasing
+
+**Module reviewed:** campusflow/queries.py
+
+**Test:** test_query_results_cannot_modify_original_tickets
+
+**Observation:**
+
+The list_tickets function returns ticket dictionaries that share
+references with the original ticket collection.
+
+When a returned ticket's status was changed from "open" to
+"resolved", the original ticket's status also changed.
+
+**Test result:** FAILED (1 failure).
+
+**Potential impact:**
+
+A caller could unintentionally modify stored ticket information
+by changing a returned query result.
+
+**Review required:**
+
+Engineer B should confirm whether query functions are required
+to return independent copies or whether shared references are
+intentional.
+
+No changes were made to Engineer B's implementation.
+
