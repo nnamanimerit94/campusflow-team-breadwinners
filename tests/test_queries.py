@@ -147,8 +147,6 @@ class TestTicketQueries(unittest.TestCase):
 
         self.assertEqual(self.tickets, original)
 class TestEngineerABugHunter(unittest.TestCase):
-
-    @unittest.skip("Pending Engineer B review of query result aliasing")
     def test_query_results_cannot_modify_original_tickets(self):
         """
         Engineer A bug-hunter test for Engineer B's query module.

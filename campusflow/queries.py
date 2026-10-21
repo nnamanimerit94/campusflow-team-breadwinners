@@ -1,13 +1,28 @@
+from copy import deepcopy
+
+
 def list_tickets(tickets):
-    #list tickets by the ticket_id in ascending order
+    """
+    Return tickets sorted by ticket ID without
+    exposing the original ticket dictionaries.
+    """
+
     if not tickets:
         return []
 
-    sorted_list = sorted(tickets.values(), key=lambda ticket: int(ticket["id"][1:]))
+    sorted_list = sorted(
+        tickets.values(),
+        key=lambda ticket: int(ticket["id"][1:])
+    )
 
-    return sorted_list
+    return deepcopy(sorted_list)
+
 
 def get_open_work_queue(tickets):
+    """
+    Return open tickets ordered by priority and ticket ID.
+    """
+
     tickets_list = list_tickets(tickets)
 
     ticket_list_with_open_status = []
@@ -20,19 +35,26 @@ def get_open_work_queue(tickets):
     }
 
     for ticket in tickets_list:
+
         if ticket["status"] == "open":
             ticket_list_with_open_status.append(ticket)
 
-    sorted_by_rank = sorted (
+    sorted_by_rank = sorted(
         ticket_list_with_open_status,
         key=lambda ticket: (
             -rank[ticket["priority"]],
-            int(ticket["id"][1:]))
+            int(ticket["id"][1:])
+        )
     )
 
     return sorted_by_rank
 
+
 def get_ticket_report(tickets):
+    """
+    Generate a report without modifying ticket data.
+    """
+
     tickets_list = list_tickets(tickets)
 
     ticket_report = {
@@ -55,11 +77,9 @@ def get_ticket_report(tickets):
     for ticket in tickets_list:
 
         status = ticket["status"]
-
         ticket_report["by_status"][status] += 1
 
         priority = ticket["priority"]
-
-        ticket_report["by_priority"][priority]+=1
+        ticket_report["by_priority"][priority] += 1
 
     return ticket_report
